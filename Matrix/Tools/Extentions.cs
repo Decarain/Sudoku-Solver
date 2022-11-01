@@ -28,14 +28,12 @@
             return values;
         }
 
-        public static Values ToValues(this int x)
+        public static Values ToValues(this int x) => x switch
         {
-            if (x < 0 || x > Consts.Size)
-            {
-                throw new ArgumentOutOfRangeException();
-            }
-            return (Values)(1 << (x - 1));
-        }
+            0 => Values.None,
+            int y when (y > 0 && y <= Consts.Size) => (Values)(1 << (y - 1)),
+            _ => throw new ArgumentOutOfRangeException(),
+            };
 
         public static int[] ToIntArray(this Values values)
         {

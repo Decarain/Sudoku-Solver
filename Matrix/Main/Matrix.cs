@@ -18,6 +18,7 @@ namespace Matrix.Main
                 throw new ArgumentException($"Incorrect matrixConsts.Size: {matrix.GetLength(0)}, {matrix.GetLength(1)}.");
             }
 
+            matrixMask = new Dictionary<(int, int), Values>();
             for (int i = 0; i < matrix.GetLength(0); i++)
             {
                 for (int j = 0; j < matrix.GetLength(1); j++)
@@ -30,12 +31,15 @@ namespace Matrix.Main
                     {
                         throw new ArgumentException($"Invalid value {matrix[i, j]} at ({i},{j}) position.");
                     }
+
+                    if (matrix[i, j] == 0)
+                    {
+                        matrixMask.Add((i, j), Values.All);
+                    }
                 }
             }
 
             this.matrix = matrix;
-            matrixMask = new Dictionary<(int, int), Values>();
-            UpdateMatrixMask();
         }
 
         public void Display()
@@ -71,15 +75,34 @@ namespace Matrix.Main
 
         public void Solve()
         {
-            SolveFirstLevel();
-            SolveSecondLevel();
-            var a = matrixMask.Values;
-            SolveThirdLevel();
-            SolveFirstLevel();
-            SolveSecondLevel();
-            var b = matrixMask.Values;
+            for (int i = 0; i < 11; i++)
+            {
+                SolveFirstLevel();
+                SolveSecondLevel();
+            }
+        }
 
-            var c = a == b;
+        private bool UpdateCellAnswers()
+        {
+            var hasChanged = false;
+            for (int i = 0; i < matrix.GetLength(0); i++)
+            {
+                for (int j = 0; j < matrix.GetLength(1); j++)
+                {
+                    if (matrixMask.ContainsKey((i, j)))
+                    {
+                        var ints = matrixMask[(i, j)].ToIntArray();
+                        if (ints.Length == 1)
+                        {
+                            matrix[i, j] = ints[0];
+                            matrixMask.Remove((i, j));
+                            hasChanged = true;
+                        }
+                    }
+                }
+            }
+
+            return hasChanged;
         }
 
         //Метод прямого исключения
@@ -89,29 +112,34 @@ namespace Matrix.Main
             while (hasChanged)
             {
                 hasChanged = false;
+
                 for (int i = 0; i < matrix.GetLength(0); i++)
                 {
                     for (int j = 0; j < matrix.GetLength(1); j++)
                     {
-                        if (matrixMask.ContainsKey((i, j)))
+                        if (matrix[i, j] == 0)
                         {
-                            var ints = matrixMask[(i, j)].ToIntArray();
-                            if (ints.Length == 1)
+                            var oldValues = matrixMask[(i, j)]; 
+                            var values = Values.All;
+                            if (matrixMask.ContainsKey((i, j)))
                             {
-                                matrix[i, j] = ints[0];
+                                values &= oldValues;
                                 matrixMask.Remove((i, j));
-                                hasChanged = true;
                             }
+
+                            values &= ~GetBlockValues(i, Blocks.Row);
+                            values &= ~GetBlockValues(j, Blocks.Column);
+                            values &= ~GetBlockValues(BlockNumberContainsElement(i, j), Blocks.Block);
+                            matrixMask.Add((i, j), values);
                         }
                     }
                 }
-                UpdateMatrixMask();
+                hasChanged |= UpdateCellAnswers();
             }
 
             return hasChanged;
         }
 
-        //Метод косвенного исключения
         private bool SolveSecondLevel()
         {
             bool hasChanged = true;
@@ -123,81 +151,82 @@ namespace Matrix.Main
                 {
                     for (int blockNumber = 0; blockNumber < Consts.Size; blockNumber++)
                     {
-                        var valueDictionary = GetValues((Blocks)block, blockNumber);
-                        foreach (Values value in Enum.GetValues(typeof(Values)))
+                        var valueDictionary = GetMaskValues((Blocks)block, blockNumber)
+                            .Where(x => x.Value != Values.None && matrix[x.Key.Item1, x.Key.Item2] != 0);
+                        if (valueDictionary.ToList().Count != 0)
                         {
-                            var currentValuesPair = valueDictionary.Where(x => (x.Value & value) == value).ToList();
-                            if (currentValuesPair.Count == 1)
+                            var transposeValueDictionary = new Dictionary<Values, List<(int, int)>>();
+                            foreach (Values value in Enum.GetValues(typeof(Values)))
                             {
-                                var position = currentValuesPair[0].Key;
-                                matrix[position.Item1, position.Item2] = value.ToIntArray()[0];
-                                hasChanged = true;
+                                if (value != Values.None)
+                                {
+                                    var currentValuesPair = valueDictionary
+                                        .Where(x => (x.Value & value) == value)
+                                        .Select(x => x.Key)
+                                        .ToList();
+                                    if (currentValuesPair.Count != 0)
+                                    {
+                                        transposeValueDictionary.Add(value, currentValuesPair);
+                                    }
+                                }
+                            }
+
+                            var possibleValuesList = GetPossibleValuesList(transposeValueDictionary
+                                    .Select(x => x.Key)
+                                    .Aggregate((x, y) => x | y));
+
+                            var a = new Dictionary<Values, List<(int, int)>>();
+                            foreach (var item in possibleValuesList)
+                            {
+                                var positionList = new List<(int, int)>();
+                                foreach (var item1 in transposeValueDictionary)
+                                {
+                                    if ((item & item1.Key) == item1.Key)
+                                    {
+                                        foreach (var item2 in item1.Value)
+                                        {
+                                            positionList.Add(item2);
+                                        }
+                                    }
+                                }
+                                a.Add(item, positionList);
+                            }
+
+                            var b = a.Where(x => x.Key.ToIntArray().Length == x.Value.Count).ToList();
+                            foreach (var item in b)
+                            {
+                                foreach (var item1 in valueDictionary)
+                                {
+                                    if (!item.Value.Contains(item1.Key) && (item.Key & item1.Value) == item1.Value)
+                                    {
+                                        matrixMask[item1.Key] &= ~item.Key;
+                                        hasChanged = true;
+                                    }
+                                }
                             }
                         }
+                        
                     }
                 }
 
-                UpdateMatrixMask();
+                hasChanged |= UpdateCellAnswers();
             }
 
             return hasChanged;
         }
 
-        private bool SolveThirdLevel()
+        private List<Values> GetPossibleValuesList(Values allValues)
         {
-            bool hasChanged = true;
-            while (hasChanged)
+            var ans = new List<Values>();
+            for (Values i = Values.One; i < Values.All; i++)
             {
-                hasChanged = false;
-
-                foreach (Blocks block in Enum.GetValues(typeof(Blocks)))
+                if ((i & allValues) == i)
                 {
-                    for (int blockNumber = 0; blockNumber < Consts.Size; blockNumber++)
-                    {
-                        var valueDictionary = GetMaskValues((Blocks)block, blockNumber);
-                        var transposeValueDictionary = new Dictionary<Values, List<(int, int)>>();
-                        List<(int, int)> positionList;
-                        foreach (Values value in Enum.GetValues(typeof(Values)))
-                        {
-                            positionList = new List<(int, int)>();
-                            var currentValuesPair = valueDictionary.Where(x => (x.Value & value) == value).Select(x => x.Key).ToList();
-                            if (currentValuesPair.Count != 0)
-                            {
-                                transposeValueDictionary.Add(value, currentValuesPair);
-                            }
-                        }
-
-                        var superValueDictionary = new Dictionary<Values, List<(int, int)>>();
-                        foreach (var item in transposeValueDictionary)
-                        {
-                            var localValues1 = transposeValueDictionary.Where(x => (item.Value).SequenceEqual(x.Value)).Select(x => x.Key).ToList();
-                            if (localValues1.Count != 0)
-                            {
-                                var localValues = localValues1.Aggregate((x, y) => x | y);
-                                superValueDictionary.TryAdd(localValues, item.Value);
-                            }
-                        }
-                        foreach (var item in superValueDictionary)
-                        {
-                            if (item.Value.Count > 1 && item.Key.ToIntArray().Length == item.Value.Count)
-                            {
-                                for (int i = 0; i < Consts.Size; i++)
-                                {
-                                    var position = GetPosition(block, blockNumber, i);
-                                    if (!item.Value.Contains(position))
-                                    {
-                                        matrixMask[position] &= ~item.Key;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    ans.Add(i);
                 }
-
-                UpdateMatrixMask();
             }
 
-            return hasChanged;
+            return ans;
         }
 
         private Values GetBlockValues(int n, Blocks block)
@@ -218,7 +247,6 @@ namespace Matrix.Main
         private Values GetBlockMaskValues(int n, Blocks block)
         {
             var values = Values.None;
-            int cell;
 
             for (int i = 0; i < Consts.Size; i++)
             {
@@ -247,42 +275,17 @@ namespace Matrix.Main
 
         //private bool IsBlockValid(int n, Blocks block) => GetElement(n, block).Where(x => (Values)x != 0).GroupBy(x => x).Select(x => x.Count()).All(x => x == 1);
 
-        private void UpdateMatrixMask()
-        {
-            for (int i = 0; i < matrix.GetLength(0); i++)
-            {
-                for (int j = 0; j < matrix.GetLength(1); j++)
-                {
-                    UpdateCellAnswers(i, j);
-                }
-            }
-        }
-
-        private void UpdateCellAnswers(int row, int column)
-        {
-            if (matrix[row, column] == 0)
-            {
-                Values values = Values.All;
-                if (matrixMask.ContainsKey((row, column)))
-                {
-                    values &= matrixMask[(row, column)];
-                    matrixMask.Remove((row, column));
-                }
-
-                values &= ~GetBlockValues(row, Blocks.Row);
-                values &= ~GetBlockValues(column, Blocks.Column);
-                values &= ~GetBlockValues(BlockNumberContainsElement(row, column), Blocks.Block);
-                matrixMask.Add((row, column), values);
-            }
-        }
-
         private Dictionary<(int, int), Values> GetValues(Blocks block, int blockNuber)
         {
             var valuesDictionary = new Dictionary<(int, int), Values>();
 
             for (int i = 0; i < Consts.Size; i++)
             {
-                valuesDictionary.Add(GetPosition(block, blockNuber, i), GetBlockValues(i, block));
+                var position = GetPosition(block, blockNuber, i);
+                if (matrix[position.Item1,position.Item2] == 0)
+                {
+                    valuesDictionary.Add(GetPosition(block, blockNuber, i), GetBlockValues(i, block));
+                }
             }
 
             return valuesDictionary;
@@ -296,7 +299,7 @@ namespace Matrix.Main
             for (int i = 0; i < Consts.Size; i++)
             {
                 var position = GetPosition(block, blockNumber, i);
-                if (matrix[position.Item1,position.Item2] != 0)
+                if (matrix[position.Item1, position.Item2] == 0)
                 {
                     valuesDictionary.Add(GetPosition(block, blockNumber, i), GetBlockMaskValues(i, block));
                 }

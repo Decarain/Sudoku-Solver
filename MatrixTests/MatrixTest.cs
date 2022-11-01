@@ -6,15 +6,18 @@ namespace MatrixTests
     [TestFixture]
     public class MatrixTest
     {
-        [TestCase("Tests\\Matrix_SolveFirstLevel_Positive_1.txt", "Tests\\Matrix_SolveFirstLevel_Positive_1expected.txt")]
-        [TestCase("Tests\\Matrix_SolveFirstLevel_Positive_2.txt", "Tests\\Matrix_SolveFirstLevel_Positive_2expected.txt")]
-        [TestCase("Tests\\Matrix_SolveFirstLevel_Positive_3.txt", "Tests\\Matrix_SolveFirstLevel_Positive_3expected.txt")]
-        [TestCase("Tests\\Matrix_SolveFirstLevel_Positive_4.txt", "Tests\\Matrix_SolveFirstLevel_Positive_3expected.txt")]
-        public void Matrix_SolveFirstLevel_Positive(string path, string pathActual)
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public void Matrix_Solve_Positive(int pathNumber)
         {
-            StreamReader reader = new StreamReader(Consts.path + path);
+            string actualPath = "Tests\\Matrix_SolveFirstLevel_Positive_" + pathNumber + ".txt";
+            string expectedPath = "Tests\\Matrix_SolveFirstLevel_PositiveExpected_" + pathNumber + ".txt";
+
+            StreamReader reader = new StreamReader(Consts.path + actualPath);
             var textActual = RemoveConrtolChars(reader.ReadToEnd());
-            reader = new StreamReader(Consts.path + pathActual);
+            reader = new StreamReader(Consts.path + expectedPath);
             var textExpected = RemoveConrtolChars(reader.ReadToEnd());
             reader.Dispose();
 
