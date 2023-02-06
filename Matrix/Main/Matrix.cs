@@ -119,7 +119,7 @@ namespace Matrix.Main
                     {
                         if (matrix[i, j] == 0)
                         {
-                            var oldValues = matrixMask[(i, j)]; 
+                            var oldValues = matrixMask[(i, j)];
                             var values = Values.All;
                             if (matrixMask.ContainsKey((i, j)))
                             {
@@ -139,6 +139,8 @@ namespace Matrix.Main
 
             return hasChanged;
         }
+
+        private int BlockNumberContainsElement(int row, int column) => 3 * (row / 3) + (column / 3);
 
         private bool SolveSecondLevel()
         {
@@ -205,7 +207,7 @@ namespace Matrix.Main
                                 }
                             }
                         }
-                        
+
                     }
                 }
 
@@ -271,26 +273,7 @@ namespace Matrix.Main
             };
         }
 
-        private int BlockNumberContainsElement(int row, int column) => 3 * (row / 3) + (column / 3);
-
         //private bool IsBlockValid(int n, Blocks block) => GetElement(n, block).Where(x => (Values)x != 0).GroupBy(x => x).Select(x => x.Count()).All(x => x == 1);
-
-        private Dictionary<(int, int), Values> GetValues(Blocks block, int blockNuber)
-        {
-            var valuesDictionary = new Dictionary<(int, int), Values>();
-
-            for (int i = 0; i < Consts.Size; i++)
-            {
-                var position = GetPosition(block, blockNuber, i);
-                if (matrix[position.Item1,position.Item2] == 0)
-                {
-                    valuesDictionary.Add(GetPosition(block, blockNuber, i), GetBlockValues(i, block));
-                }
-            }
-
-            return valuesDictionary;
-        }
-
 
         private Dictionary<(int, int), Values> GetMaskValues(Blocks block, int blockNumber)
         {

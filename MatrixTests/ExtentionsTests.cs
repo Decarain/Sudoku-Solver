@@ -32,5 +32,21 @@ namespace MatrixTests
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => number.ToValues());
         }
+
+        [TestCase(Values.One | Values.Eight, ExpectedResult = new int[] { 1, 8 })]
+        [TestCase(Values.One | Values.Two | Values.Tree, ExpectedResult = new int[] { 1, 2, 3 })]
+        [TestCase(Values.One | Values.Two | Values.Four | Values.Seven | Values.Nine, ExpectedResult = new int[] { 1, 2, 4, 7, 9 })]
+        [TestCase(Values.None, ExpectedResult = new int[] { })]
+        [TestCase(Values.All, ExpectedResult = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 })]
+        public int[] ToIntArray_Positive(Values values) => values.ToIntArray();
+
+        [TestCase((Values)int.MaxValue)]
+        [TestCase((Values)int.MinValue)]
+        [TestCase((Values)(-1))]
+        [TestCase((Values)99999)]
+        public void ToIntArray_Negative_ThrowAgrumentOutOfRangeException(Values values)
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => values.ToIntArray());
+        }
     }
 }

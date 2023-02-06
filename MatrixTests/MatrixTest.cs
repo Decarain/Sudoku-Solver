@@ -10,6 +10,7 @@ namespace MatrixTests
         [TestCase(2)]
         [TestCase(3)]
         [TestCase(4)]
+        [TestCase(5)]
         public void Matrix_Solve_Positive(int pathNumber)
         {
             string actualPath = "Tests\\Matrix_SolveFirstLevel_Positive_" + pathNumber + ".txt";

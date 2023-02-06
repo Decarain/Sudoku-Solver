@@ -37,6 +37,11 @@
 
         public static int[] ToIntArray(this Values values)
         {
+            if (values < Values.None || values > Values.All)
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+
             List<int> ints = new List<int>();
             int value = (int)values;
 
